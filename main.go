@@ -1,5 +1,5 @@
 package main
-
+//que  ganas de follarme duro a arturo, destrosarle el ano, dejarselo rojito 
 import (
 	"bufio"
 	"fmt"
@@ -11,9 +11,10 @@ import (
 	"OpercliteServer/login"
 	"OpercliteServer/reports"
 	"OpercliteServer/server"
-	//"OpercliteServer/logs"
+	"OpercliteServer/logs"
 	"time"
 )
+
 
 func main() {
 	//Inicializacion del servidor
@@ -37,7 +38,7 @@ func main() {
 		server.Cls()
 		fmt.Println("Unauthorized, cerrando conexion")
 		remoteSocket.Close()
-		os.Exit(0)
+		return
 	}
 	sendDefaultMsg(&remoteSocket, "Sucessful")
 	fmt.Println("OK!")
@@ -47,8 +48,17 @@ func main() {
 		fmt.Println("Error al convertir: ", err)
 		return
 	}
+	dataCurrentCli, backupLogs := logs.LoadTimeOffData(cli_IP)
 	//Login
-	attempts := 0
+	var attempts int
+	if logs.BackupIsEmpty(backupLogs) {
+		attempts = 0
+	}
+	if logs.CurrentDataIsEmpty(dataCurrentCli) {
+		attempts = 0
+	} else {
+		attempts = int(logs.GetAttempts(dataCurrentCli))
+	}
 	for {
 		fmt.Println("Pidiendo usuario...")
 		sendDefaultMsg(&remoteSocket, "Ingrese su usuario a continuacion")
@@ -72,11 +82,10 @@ func main() {
 	}
 	attempts = 0
 	fmt.Println("Login OK")
-	//Comunicacion meta
+	//Comunicacion principal
 	quitServer := make(chan bool)
 	go recMsg(remoteSocket, cli_IP, quitServer)
 	go sendUsageReport(remoteSocket, quitServer, interval)
-	//go sendCommandResult(remoteSocket) [En preparacion]
 	<-quitServer
 	server.Cls()
 	fmt.Println("Gracias por usar el servidor de Operclite :)")

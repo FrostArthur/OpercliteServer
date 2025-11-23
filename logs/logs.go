@@ -17,15 +17,22 @@ type TimeOffData struct {
 	attempts *int64
 }
 
-//Es el respaldo de los datos del archivo plano logs.log para que una vez se cierre el programa se sobreescriban toda la información
+//Es el respaldo de los datos del archivo plano logs.log que garantiza que una vez se cierre el programa se sobreescriban toda la información
 type BackupData struct {
 	clients_ip *[]string
     clients_timeoff *[]string
 	clients_attempts *[]string
 }
 
-//Carga la información de tiempo de espera que tiene un cliente si el programa cerró previamente durante un tiempo de espera
+func GetAttempts(data TimeOffData) int64 {
+    return *data.attempts
+}
 
+func GetTimeOff(data TimeOffData) int64 {
+    return *data.timeoff
+}
+
+//Carga la información de tiempo de espera que tiene un cliente si el programa cerró previamente durante un tiempo de espera
 func LoadTimeOffData(client_ip string) (TimeOffData, BackupData) {
 	timeData := TimeOffData {}
     backup := BackupData {}
@@ -37,42 +44,12 @@ func LoadTimeOffData(client_ip string) (TimeOffData, BackupData) {
     fileData := strings.Split(string(fileData_B), "\n")
 	var timeOff, attempts int64
 	var ipsList, timeoffList, attemptsList []string
-	for _, client := range fileData {
-		//Se ignora la linea que tenga un espacio vacio al principio o con #
-		if strings.HasPrefix(client, " ") || strings.HasPrefix(client, "#") {
-			continue
-		}
-		data := strings.Split(client, ":")
-		//Comprobamos si estan los 3 campos que se necesitan
-		if (len(data) > 3) {
-			fmt.Println("Error, hay mas de 3 casillas de informacion")
-			continue
-		}
-		//Cargamos el respaldo de los datos del archivo logs.log
-        ipsList = append(ipsList, data[0])
-		timeoffList = append(timeoffList, data[1])
-		attemptsList = append(attemptsList, data[2])
-		/*Comprobamos si el cliente efectivamente esta en la lista de bloqueados con la
-		ip que se recibe por parametro (se comprueba siempre en la primera posicion)*/
-
-		if (data[0] == client_ip) { //Si coincide se sabe que [1] y [2] contienen el tiempo de espera y los intentos respectivamente
-            time_int, err := strconv.ParseInt(data[1], 10, 64)
-		    if err != nil {
-			   fmt.Println("Error al convertir a entero: ", err)
-			   backup = BackupData {} //Lo retornamos como vacio, 
-			   return timeData, backup
-		    }
-			timeOff = time_int
-			attempts_int, err := strconv.ParseInt(data[2], 10, 64)
-		    if err != nil {
-			   fmt.Println("Error al convertir a entero: ", err)
-			   backup = BackupData {}
-			   return timeData, backup
-		    }
-			attempts = attempts_int
-		}
+	errInFill := fillData(fileData, client_ip, &timeOff, &attempts, &ipsList, &timeoffList, &attemptsList)
+	if errInFill != nil {
+       fmt.Println("Error en el llenado de datos: ", err)
+	   return timeData, backup
 	}
-	structTime := TimeOffData {
+	timeData = TimeOffData {
 		ip: &client_ip,
 		timeoff: &timeOff,
 		attempts: &attempts,
@@ -82,12 +59,53 @@ func LoadTimeOffData(client_ip string) (TimeOffData, BackupData) {
 		clients_timeoff: &timeoffList,
 		clients_attempts: &attemptsList,
 	}
-	return structTime, backup
+	return timeData, backup
+}
+
+func fillData(fileData []string, client_ip string, 
+	timeOff *int64, attempts *int64, ipList *[]string, 
+	timeOffList *[]string, attemptList *[]string) error {
+	for _, client := range fileData {
+		client = strings.TrimSpace(client)
+        //Se ignora la linea que este vacia o comentada
+		if client == "" || strings.HasPrefix(client, "#") {
+			continue
+		}
+		data := strings.Split(client, ":")
+		//Comprobamos si estan los 3 campos que se necesitan
+		if (len(data) != 3) {
+			fmt.Println("Error, linea corrupta")
+			continue
+		}
+		//Cargamos el respaldo de los datos del archivo logs.log
+        *ipList = append(*ipList, data[0])
+		*timeOffList = append(*timeOffList, data[1])
+		*attemptList = append(*attemptList, data[2])
+		/*Comprobamos si el cliente efectivamente esta en la lista de bloqueados con la
+		ip que se recibe por parametro (se comprueba siempre en la primera posicion)*/
+		if (data[0] == client_ip) { //Si coincide se sabe que [1] y [2] contienen el tiempo de espera y los intentos respectivamente
+            tOff, err := strconv.ParseInt(data[1], 10, 64)
+		    if err != nil {
+			   return err
+		    }
+			*timeOff = tOff
+			atts, err := strconv.ParseInt(data[2], 10, 64)
+		    if err != nil {
+			   return err
+		    }
+			*attempts = atts
+		}
+	}
+	return nil
 }
 
 //Valida si alguna de las dos estructuras esta vacia
-func IsEmpty(currentData TimeOffData, currentBackup BackupData) bool {
-    return currentData == TimeOffData {} || currentBackup == BackupData{}
+func CurrentDataIsEmpty(currentData TimeOffData) bool {
+    return currentData == TimeOffData {}
+}
+
+func BackupIsEmpty(currentBackup BackupData) bool {
+    return currentBackup == BackupData {}
 }
 
 func SaveTimeOffData() {
