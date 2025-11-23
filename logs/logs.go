@@ -86,12 +86,8 @@ func LoadTimeOffData(client_ip string) (TimeOffData, BackupData) {
 }
 
 //Valida si alguna de las dos estructuras esta vacia
-func IsEmpty(currentData TimeOffData) bool {
-    return currentData == TimeOffData {} || currentData == BackupData {}
-}
-
-func fillTimeOffData() {
-    for _, 
+func IsEmpty(currentData TimeOffData, currentBackup BackupData) bool {
+    return currentData == TimeOffData {} || currentBackup == BackupData{}
 }
 
 func SaveTimeOffData() {
