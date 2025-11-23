@@ -34,7 +34,7 @@ func fillData(users []string, usercli *[]string, hpasswdcli *[]string) {
 		}
 		parts := strings.Split(cli, ":") 
 		//Para evitar errores por usar direcciones de memoria invalidas
-		if (len(parts) < 2) {
+		if (len(parts) != 2) {
 			continue
 		}
 		*usercli = append(*usercli, parts[0])
