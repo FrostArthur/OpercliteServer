@@ -77,6 +77,7 @@ func main() {
 		sendDefaultMsg(&remoteSocket, "Retry")
 	}
 	attempts = 0
+	counter = 0
 	fmt.Println("Login OK")
 	//Comunicacion principal
 	quitServer := make(chan bool)
