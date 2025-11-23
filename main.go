@@ -8,9 +8,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"testing/login"
-	"testing/reports"
-	"testing/server"
+	"OpercliteServer/login"
+	"OpercliteServer/reports"
+	"OpercliteServer/server"
+	//"OpercliteServer/logs"
 	"time"
 )
 
@@ -55,7 +56,7 @@ func main() {
 		fmt.Println("Pidiendo contraseña...")
 		sendDefaultMsg(&remoteSocket, "Ingrese su contraseña a continuacion")
 		passwdclient := recCredentialMsg(&remoteSocket) //Espera recibir contraseña
-		if login.FindCli(userclient, passwdclient) {
+		if login.CliFound(userclient, passwdclient) {
 			sendDefaultMsg(&remoteSocket, "Login OK")
 			break
 		}
@@ -106,7 +107,7 @@ func sendUsageReport(socket net.Conn, quitFlag chan bool, interval int) {
 	for {
 		time.Sleep(time.Duration(interval) * time.Second)
 		numReport++
-		msg := "Report: " + reports.SaveReport() + "\r\n" //Formato \r\n para recibir correctamente del módulo de Windows
+		msg := "Report: " + reports.LoadReport() + "\r\n" //Formato \r\n para recibir correctamente del módulo de Windows
 		env := bufio.NewWriter(socket)
 		env.WriteString(msg)
 		env.Flush()
