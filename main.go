@@ -10,10 +10,8 @@ import (
 	"OpercliteServer/login"
 	"OpercliteServer/reports"
 	"OpercliteServer/server"
-	"OpercliteServer/logs"
 	"time"
 )
-
 
 func main() {
 	//Inicializacion del servidor
@@ -47,17 +45,10 @@ func main() {
 		fmt.Println("Error al convertir: ", err)
 		return
 	}
-	dataCurrentCli, backupLogs := logs.LoadTimeOffData(cli_IP)
 	//Login
-	var attempts int
-	if logs.BackupIsEmpty(backupLogs) {
-		attempts = 0
-	}
-	if logs.CurrentDataIsEmpty(dataCurrentCli) {
-		attempts = 0
-	} else {
-		attempts = int(logs.GetAttempts(dataCurrentCli))
-	}
+	var attempts int = 0
+	var counter int = 1
+	//Le enviamos un mensaje que diga freeze: <segundos>, en caso de que haya mas de 10 intentos, cerrar la conexion
 	for {
 		fmt.Println("Pidiendo usuario...")
 		sendDefaultMsg(&remoteSocket, "Ingrese su usuario a continuacion")
@@ -70,12 +61,18 @@ func main() {
 			break
 		}
 		attempts++
-		if attempts == 3 { //Configurar logica para los 3 intentos, tan pronto este definida en server.go
-			sendDefaultMsg(&remoteSocket, "Locked")
+		if attempts == 10 {
+            sendDefaultMsg(&remoteSocket, "Locked")
 			server.Cls()
 			remoteSocket.Close()
 			fmt.Println("Conexion finalizada, error de login")
-			os.Exit(0)
+			return
+		}
+		if attempts >= 3 { 
+            counter += counter
+			fmt.Println("Muchos intentos por parte del cliente, poner en espera durante ", counter)
+			sendDefaultMsg(&remoteSocket, "Freeze: " + strconv.Itoa(counter))
+			continue
 		}
 		sendDefaultMsg(&remoteSocket, "Retry")
 	}

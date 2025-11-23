@@ -41,3 +41,4 @@ func fillData(users []string, usercli *[]string, hpasswdcli *[]string) {
 		*hpasswdcli = append(*hpasswdcli, parts[1])
 	}
 }
+
