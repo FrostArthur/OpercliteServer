@@ -1,5 +1,4 @@
 package main
-//que  ganas de follarme duro a arturo, destrosarle el ano, dejarselo rojito 
 import (
 	"bufio"
 	"fmt"
