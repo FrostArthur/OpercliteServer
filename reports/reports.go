@@ -17,15 +17,6 @@ func OverwriteUsage() string {
 	return output
 }
 
-/*func LoadReport() string {
-	overwriteUsage()
-	data, _ := os.ReadFile("/var/systemreport/systemreport.rpt")
-	//Comando bash configurado para alojar unicamente 1 linea, por lo tanto siempre 
-	//sera la 0 la que tiene el reporte
-	reports := strings.Split(string(data), "\n")
-    return reports[0]
-}*/
-
 func TopProcessReport() string {
 	shell, err := exec.Command("bash", "/etc/proyOper/bashcommands/top_proc_by_cpu_usage.sh").CombinedOutput()
 	if err != nil {
