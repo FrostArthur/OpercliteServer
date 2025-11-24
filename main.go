@@ -61,7 +61,7 @@ func main() {
 			break
 		}
 		attempts++
-		if attempts == 10 {
+		if attempts == 6 {
             sendDefaultMsg(&remoteSocket, "Locked")
 			server.Cls()
 			remoteSocket.Close()
@@ -159,5 +159,5 @@ func execCommand(socket net.Conn, commandBash string) {
 		fmt.Println("Si estoy apto para enviarte comandos mi rey :3")
 	}
     
-	socket.Write([]byte(output + "\n"))
+	socket.Write([]byte(output + "\r\n"))
 }

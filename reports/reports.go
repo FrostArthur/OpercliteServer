@@ -4,16 +4,21 @@ package reports
 import (
 	"fmt"
 	"os/exec"
+	"os"
 )
 
 //Ejecuta la funcion bash para sobreescribir el uso del system
 func OverwriteUsage() string {
 	updatedUsage, err := exec.Command("bash", "/etc/proyOper/bashcommands/systemreport.sh").CombinedOutput()
+	output := string(updatedUsage)
 	if err != nil {
 		fmt.Println(err)
 		return ""
 	}
-	output := string(updatedUsage)
+	if output == "" {
+		fmt.Println("Linea vacia")
+		os.Exit(0)
+	}
 	return output
 }
 
