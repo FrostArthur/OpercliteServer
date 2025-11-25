@@ -28,9 +28,9 @@ func StartServer(file string) string {
 //Su objetivo es buscar si la IP que intenta conectarse si esta autorizada
 func FindConnConf(fileName string, remoteIP string) bool {
 	data, _ := os.ReadFile(fileName)
-	credentials := strings.Split(string(data), "\n")
+	lines := strings.Split(string(data), "\n")
 	var allowed_ips []string
-	fillData(credentials, &allowed_ips)
+	fillData(lines, &allowed_ips)
 	for _, ip := range allowed_ips {
 		if ip == remoteIP {
 			return true
@@ -40,8 +40,8 @@ func FindConnConf(fileName string, remoteIP string) bool {
 }
 
 //Llena los datos necesarios para validar
-func fillData(conf_list []string, ip_list *[]string) {
-	for _, conf := range conf_list {
+func fillData(file_lines []string, ip_list *[]string) {
+	for _, conf := range file_lines {
 		if conf == "" || strings.HasPrefix(conf, "#") {
 			continue
 		}

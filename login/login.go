@@ -8,25 +8,23 @@ import (
 )
 
 //Valida contra la base de datos de usuarios del socket
-func CliFound(user string, passwd string) bool {
+func CliFound(client string) bool {
 	data, _ := os.ReadFile("/etc/proyOper/data/proyOper.users")
-	credentials := strings.Split(string(data), "\n")
+	lines := strings.Split(string(data), "\n")
 	var usercli []string
 	var hpasswdcli []string
-	fillData(credentials, &usercli, &hpasswdcli)
-    for x, cli := range usercli {
-		if (user == cli) {
-			if (passwd == hpasswdcli[x]) {
-				return true
-			}
+	fillData(lines, &usercli, &hpasswdcli)
+    for x, user := range usercli {
+		if (strings.HasPrefix(client, user)) {
+			return client == strings.TrimSpace(user + ":" + hpasswdcli[x])
 		}
 	}
 	return false
 }
 
 //Llena los datos necesarios para validar
-func fillData(users []string, usercli *[]string, hpasswdcli *[]string) {
-	for _, cli := range users {
+func fillData(file_lines []string, usercli *[]string, hpasswdcli *[]string) {
+	for _, cli := range file_lines {
 		cli = strings.TrimSpace(cli)
 		//Evita lineas invalidas
 		if cli == " " || strings.HasPrefix(cli, "#") {

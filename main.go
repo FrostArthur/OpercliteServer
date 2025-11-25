@@ -21,12 +21,11 @@ func main() {
 	fmt.Println("*           Operclite Server           *")
 	fmt.Println("****************************************")
 	localPort := server.StartServer(dbase)
-	dirTCP, _ := net.ResolveTCPAddr("tcp4", ":"+localPort)
-	fmt.Println("Abriendo el puerto ", localPort)
-	socketServer, _ := net.ListenTCP("tcp4", dirTCP)
-	fmt.Println("Esperando conexiones...")
-	//Socket remoto conectandose
-	remoteSocket, _ := socketServer.Accept()
+	remoteSocket, err := connectionPhase(localPort)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	cli_IP, _, _ := net.SplitHostPort(remoteSocket.RemoteAddr().String())
 	fmt.Println("Solicitud de: ", cli_IP)
 	//Validacion de IP
@@ -49,33 +48,7 @@ func main() {
 	var attempts int = 0
 	var counter int = 1
 	//Le enviamos un mensaje que diga freeze: <segundos>, en caso de que haya mas de 10 intentos, cerrar la conexion
-	for {
-		fmt.Println("Pidiendo usuario...")
-		sendDefaultMsg(&remoteSocket, "Ingrese su usuario a continuacion")
-		userclient := recCredentialMsg(&remoteSocket) //Espera recibir el usuario
-		fmt.Println("Pidiendo contraseña...")
-		sendDefaultMsg(&remoteSocket, "Ingrese su contraseña a continuacion")
-		passwdclient := recCredentialMsg(&remoteSocket) //Espera recibir contraseña
-		if login.CliFound(userclient, passwdclient) {
-			sendDefaultMsg(&remoteSocket, "Login OK")
-			break
-		}
-		attempts++
-		if attempts == 6 {
-            sendDefaultMsg(&remoteSocket, "Locked")
-			server.Cls()
-			remoteSocket.Close()
-			fmt.Println("Conexion finalizada, error de login")
-			return
-		}
-		if attempts >= 3 { 
-            counter += counter
-			fmt.Println("Muchos intentos por parte del cliente, poner en espera durante ", counter)
-			sendDefaultMsg(&remoteSocket, "Freeze: " + strconv.Itoa(counter))
-			continue
-		}
-		sendDefaultMsg(&remoteSocket, "Retry")
-	}
+	loginProcess(remoteSocket, attempts, counter)
 	attempts = 0
 	counter = 0
 	fmt.Println("Login OK")
@@ -90,15 +63,76 @@ func main() {
 	os.Exit(0)
 }
 
+//Fase de conexion, se retorna la variable Conn con el socket remoto
+func connectionPhase(localPort string) (net.Conn, error) {
+	dirTCP, errAddr := net.ResolveTCPAddr("tcp4", ":" + localPort)
+	if errAddr != nil {
+		return nil, errAddr
+	}
+	fmt.Println("Abriendo el puerto ", localPort)
+	serverSocket, errListen := net.ListenTCP("tcp4", dirTCP)
+	if errListen != nil {
+		return nil, errListen
+	}
+	fmt.Println("Esperando conexiones...")
+	remoteSocket, errAccept := serverSocket.Accept()
+	if errAccept != nil {
+		return nil, errAccept
+	}
+	return remoteSocket, nil
+}
+
+func loginProcess(remoteSocket net.Conn, attempts int, counter int) {
+	for {
+		fmt.Println("Pidiendo usuario...")
+		sendDefaultMsg(&remoteSocket, "Ingrese su usuario a continuacion")
+		userclient := recCredentialMsg(&remoteSocket) //Espera recibir el usuario
+		fmt.Println("Pidiendo contraseña...")
+		sendDefaultMsg(&remoteSocket, "Ingrese su contraseña a continuacion")
+		passwdclient := recCredentialMsg(&remoteSocket) //Espera recibir contraseña
+		client := strings.TrimSpace(userclient + ":" + passwdclient)
+		if login.CliFound(client) {
+			sendDefaultMsg(&remoteSocket, "Login OK")
+			return
+		}
+		attempts++
+		if attempts == 6 {
+            sendDefaultMsg(&remoteSocket, "Locked")
+			server.Cls()
+			remoteSocket.Close()
+			fmt.Println("Conexion finalizada, error de login")
+			os.Exit(0)
+		}
+		if attempts >= 3 { 
+            counter += counter
+			fmt.Println("Muchos intentos por parte del cliente, poner en espera durante ", counter)
+			sendDefaultMsg(&remoteSocket, "Freeze: " + strconv.Itoa(counter))
+			continue
+		}
+		sendDefaultMsg(&remoteSocket, "Retry")
+	}
+}
+
 func recMsg(socket net.Conn, remoteIP string, quitFlag chan bool) {
 	for {
-		msg, _ := bufio.NewReader(socket).ReadString('\n')
+		socket.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		msg, err := bufio.NewReader(socket).ReadString('\n')
+		if err != nil {
+            if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			    continue
+		    }
+			fmt.Println("Error de conexion: ", err)
+			quitFlag <- true
+			os.Exit(1)
+		}
 		fmt.Println("Client [ ", remoteIP, " ] --> ", msg)
 		if strings.HasPrefix(msg, "exec:") {
 			fmt.Println("Tratamos con un comando")
+			env := bufio.NewWriter(socket)
 			command := strings.TrimSpace(strings.TrimPrefix(msg, "exec:"))
 			fmt.Println(command)
-			execCommand(socket, command)
+			env.WriteString(execCommand(command))
+			env.Flush()
 			continue
 		}
 		if msg == "bye\n" { //Formato \r\n para recibir correctamente del módulo de Windows
@@ -109,15 +143,16 @@ func recMsg(socket net.Conn, remoteIP string, quitFlag chan bool) {
 }
 
 func sendUsageReport(socket net.Conn, quitFlag chan bool, interval int) {
+	env := bufio.NewWriter(socket)
 	numReport := 0
 	for {
 		time.Sleep(time.Duration(interval) * time.Second)
 		numReport++
 		msg := "Report: " + reports.OverwriteUsage() + "\r\n" //Formato \r\n para recibir correctamente del módulo de Windows
-		env := bufio.NewWriter(socket)
 		env.WriteString(msg)
 		env.Flush()
-		socket.Write([]byte(reports.TopProcessReport()))
+		env.WriteString(reports.TopProcessReport())
+		env.Flush()
 		if msg == "bye\n" {
 			quitFlag <- true
 			return
@@ -143,7 +178,7 @@ func recCredentialMsg(socket *net.Conn) string {
 	return msg
 }
 
-func execCommand(socket net.Conn, commandBash string) {
+func execCommand(commandBash string) string {
 	shell, err := exec.Command("bash", "-c", commandBash).CombinedOutput()
 	output := string(shell)
 	if err != nil {
@@ -152,12 +187,8 @@ func execCommand(socket net.Conn, commandBash string) {
 	lines := strings.Count(output, "\n")
 
 	if lines > 50 {
-		socket.Write([]byte(fmt.Sprintf("El comando genera %d líneas. No se mostrará completo.\n", lines)))
-		parts := strings.SplitN(output, "\n", 41)
-		output = strings.Join(parts[:40], "\n") + "\n... [Salida truncada]\n"
-	} else {
-		fmt.Println("Si estoy apto para enviarte comandos mi rey :3")
+		parts := strings.SplitN(output, "\n", 51)
+		output = strings.Join(parts[:50], "\n") + "\n... [Salida recortada]\n"
 	}
-    
-	socket.Write([]byte(output + "\r\n"))
+	return output
 }
