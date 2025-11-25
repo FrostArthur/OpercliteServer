@@ -1,5 +1,3 @@
-/*Modulo encargado de validar credenciales para permitir o no el acceso a la comunicacion principal
-entre los dos sockets*/
 package login
 
 import (
@@ -7,7 +5,6 @@ import (
 	"strings"
 )
 
-//Valida contra la base de datos de usuarios del socket
 func CliFound(client string) bool {
 	data, _ := os.ReadFile("/etc/proyOper/data/proyOper.users")
 	lines := strings.Split(string(data), "\n")
@@ -22,16 +19,13 @@ func CliFound(client string) bool {
 	return false
 }
 
-//Llena los datos necesarios para validar
 func fillData(file_lines []string, usercli *[]string, hpasswdcli *[]string) {
 	for _, cli := range file_lines {
 		cli = strings.TrimSpace(cli)
-		//Evita lineas invalidas
 		if cli == " " || strings.HasPrefix(cli, "#") {
 			continue
 		}
 		parts := strings.Split(cli, ":") 
-		//Para evitar errores por usar direcciones de memoria invalidas
 		if (len(parts) != 2) {
 			continue
 		}

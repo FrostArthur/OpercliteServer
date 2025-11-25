@@ -1,4 +1,5 @@
 package main
+
 import (
 	"bufio"
 	"fmt"
@@ -14,7 +15,6 @@ import (
 )
 
 func main() {
-	//Inicializacion del servidor
 	const dbase string = "/etc/operserver.conf"
 	server.Cls()
 	fmt.Println("\n**************************************")
@@ -28,7 +28,6 @@ func main() {
 	}
 	cli_IP, _, _ := net.SplitHostPort(remoteSocket.RemoteAddr().String())
 	fmt.Println("Solicitud de: ", cli_IP)
-	//Validacion de IP
 	if !server.FindConnConf(dbase, cli_IP) {
 		sendDefaultMsg(&remoteSocket, "Unauthorized")
 		server.Cls()
@@ -44,15 +43,12 @@ func main() {
 		fmt.Println("Error al convertir: ", err)
 		return
 	}
-	//Login
 	var attempts int = 0
 	var counter int = 1
-	//Le enviamos un mensaje que diga freeze: <segundos>, en caso de que haya mas de 10 intentos, cerrar la conexion
 	loginProcess(remoteSocket, attempts, counter)
 	attempts = 0
 	counter = 0
 	fmt.Println("Login OK")
-	//Comunicacion principal
 	quitServer := make(chan bool)
 	go recMsg(remoteSocket, cli_IP, quitServer)
 	go sendUsageReport(remoteSocket, quitServer, interval)
@@ -63,7 +59,6 @@ func main() {
 	os.Exit(0)
 }
 
-//Fase de conexion, se retorna la variable Conn con el socket remoto
 func connectionPhase(localPort string) (net.Conn, error) {
 	dirTCP, errAddr := net.ResolveTCPAddr("tcp4", ":" + localPort)
 	if errAddr != nil {
@@ -86,10 +81,10 @@ func loginProcess(remoteSocket net.Conn, attempts int, counter int) {
 	for {
 		fmt.Println("Pidiendo usuario...")
 		sendDefaultMsg(&remoteSocket, "Ingrese su usuario a continuacion")
-		userclient := recCredentialMsg(&remoteSocket) //Espera recibir el usuario
+		userclient := recCredentialMsg(&remoteSocket) 
 		fmt.Println("Pidiendo contraseña...")
 		sendDefaultMsg(&remoteSocket, "Ingrese su contraseña a continuacion")
-		passwdclient := recCredentialMsg(&remoteSocket) //Espera recibir contraseña
+		passwdclient := recCredentialMsg(&remoteSocket) 
 		client := strings.TrimSpace(userclient + ":" + passwdclient)
 		if login.CliFound(client) {
 			sendDefaultMsg(&remoteSocket, "Login OK")
@@ -135,7 +130,7 @@ func recMsg(socket net.Conn, remoteIP string, quitFlag chan bool) {
 			env.Flush()
 			continue
 		}
-		if msg == "bye\n" { //Formato \r\n para recibir correctamente del módulo de Windows
+		if msg == "bye\n" { 
 			quitFlag <- true
 			return
 		}
@@ -148,7 +143,7 @@ func sendUsageReport(socket net.Conn, quitFlag chan bool, interval int) {
 	for {
 		time.Sleep(time.Duration(interval) * time.Second)
 		numReport++
-		msg := "Report: " + reports.OverwriteUsage() + "\r\n" //Formato \r\n para recibir correctamente del módulo de Windows
+		msg := "Report: " + reports.OverwriteUsage() + "\r\n"
 		env.WriteString(msg)
 		env.Flush()
 		env.WriteString(reports.TopProcessReport())
@@ -162,7 +157,7 @@ func sendUsageReport(socket net.Conn, quitFlag chan bool, interval int) {
 
 func sendDefaultMsg(socket *net.Conn, defMsg string) {
 	env := bufio.NewWriter(*socket)
-	env.WriteString(defMsg + "\r\n") //Formato \r\n para recibir correctamente del módulo de Windows
+	env.WriteString(defMsg + "\r\n")
 	env.Flush()
 }
 
